@@ -1,12 +1,13 @@
 import Keyv from 'keyv'
 import pTimeout from 'p-timeout'
 import QuickLRU from 'quick-lru'
-import { v4 as uuidv4 } from 'uuid'
+import {v4 as uuidv4} from 'uuid'
 
 import * as tokenizer from './tokenizer'
 import * as types from './types'
-import { fetch as globalFetch } from './fetch'
-import { fetchSSE } from './fetch-sse'
+import {QuestionInput} from './types'
+import {fetch as globalFetch} from './fetch'
+import {fetchSSE} from './fetch-sse'
 
 const CHATGPT_MODEL = 'gpt-3.5-turbo'
 
@@ -122,20 +123,20 @@ export class ChatGPTAPI {
    *
    * Set `debug: true` in the `ChatGPTAPI` constructor to log more info on the full prompt sent to the OpenAI chat completions API. You can override the `systemMessage` in `opts` to customize the assistant's instructions.
    *
-   * @param message - The prompt message to send
-   * @param opts.parentMessageId - Optional ID of the previous message in the conversation (defaults to `undefined`)
-   * @param opts.conversationId - Optional ID of the conversation (defaults to `undefined`)
+   * @param input - The prompt message or image(s) to send
+   * @param opts - Option when sending message
+   * @param opts.parentMessageId - Optional ID of the previous message in the conversation (defaults to `undefined`)   * @param opts.conversationId - Optional ID of the conversation (defaults to `undefined`)
    * @param opts.messageId - Optional ID of the message to send (defaults to a random UUID)
    * @param opts.systemMessage - Optional override for the chat "system message" which acts as instructions to the model (defaults to the ChatGPT system message)
    * @param opts.timeoutMs - Optional timeout in milliseconds (defaults to no timeout)
    * @param opts.onProgress - Optional callback which will be invoked every time the partial response is updated
    * @param opts.abortSignal - Optional callback used to abort the underlying `fetch` call using an [AbortController](https://developer.mozilla.org/en-US/docs/Web/API/AbortController)
-   * @param completionParams - Optional overrides to send to the [OpenAI chat completion API](https://platform.openai.com/docs/api-reference/chat/create). Options like `temperature` and `presence_penalty` can be tweaked to change the personality of the assistant.
+   * @param opts.completionParams - Optional overrides to send to the [OpenAI chat completion API](https://platform.openai.com/docs/api-reference/chat/create). Options like `temperature` and `presence_penalty` can be tweaked to change the personality of the assistant.
    *
    * @returns The response from ChatGPT
    */
   async sendMessage(
-    text: string,
+    input: QuestionInput,
     opts: types.SendMessageOptions = {}
   ): Promise<types.ChatMessage> {
     const {
@@ -143,7 +144,7 @@ export class ChatGPTAPI {
       messageId = uuidv4(),
       timeoutMs,
       onProgress,
-      stream = onProgress ? true : false,
+      stream = !!onProgress,
       completionParams,
       conversationId
     } = opts
@@ -161,13 +162,13 @@ export class ChatGPTAPI {
       id: messageId,
       conversationId,
       parentMessageId,
-      text
+      text: typeof input === 'string' ? input : input.find(o => o.type === 'text')['text'],
     }
 
     const latestQuestion = message
 
-    const { messages, maxTokens, numTokens } = await this._buildMessages(
-      text,
+    const { messages: _messages, maxTokens, numTokens } = await this._buildMessages(
+      input,
       opts
     )
 
@@ -190,7 +191,7 @@ export class ChatGPTAPI {
           max_tokens: maxTokens,
           ...this._completionParams,
           ...completionParams,
-          messages,
+          messages: _messages,
           stream
         }
 
@@ -358,7 +359,7 @@ export class ChatGPTAPI {
     this._apiOrg = apiOrg
   }
 
-  protected async _buildMessages(text: string, opts: types.SendMessageOptions) {
+  protected async _buildMessages(input: QuestionInput, opts: types.SendMessageOptions) {
     const { systemMessage = this._systemMessage } = opts
     let { parentMessageId } = opts
 
@@ -376,14 +377,12 @@ export class ChatGPTAPI {
     }
 
     const systemMessageOffset = messages.length
-    let nextMessages = text
-      ? messages.concat([
-          {
-            role: 'user',
-            content: text,
-            name: opts.name
-          }
-        ])
+    let nextMessages = input
+      ? messages.concat({
+          role: 'user',
+          content: typeof input === 'string' ? input : [...input],
+          name: opts.name
+        })
       : messages
     let numTokens = 0
 
@@ -458,8 +457,7 @@ export class ChatGPTAPI {
   protected async _defaultGetMessageById(
     id: string
   ): Promise<types.ChatMessage> {
-    const res = await this._messageStore.get(id)
-    return res
+    return await this._messageStore.get(id)
   }
 
   protected async _defaultUpsertMessage(

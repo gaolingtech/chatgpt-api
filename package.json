@@ -1,9 +1,9 @@
 {
-  "name": "chatgpt",
-  "version": "5.2.5",
+  "name": "@gaolingtech/chatgpt-api",
+  "version": "5.3.0",
+  "author": "gaolingtech",
   "description": "Node.js client for the official ChatGPT API.",
-  "author": "Travis Fischer <travis@transitivebullsh.it>",
-  "repository": "transitive-bullshit/chatgpt-api",
+  "repository": "https://github.com/gaolingtech/chatgpt-api",
   "license": "MIT",
   "type": "module",
   "source": "./src/index.ts",
@@ -17,7 +17,8 @@
   },
   "files": [
     "build",
-    "bin"
+    "bin",
+    "src"
   ],
   "bin": "./bin/cli.js",
   "engines": {

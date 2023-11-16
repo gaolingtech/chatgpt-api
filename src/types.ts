@@ -1,4 +1,5 @@
 import Keyv from 'keyv'
+import ChatCompletionRequestMessageContentObject = openai.ChatCompletionRequestMessageContentObject;
 
 export type Role = 'user' | 'assistant' | 'system'
 
@@ -207,6 +208,10 @@ export namespace openai {
     ]
   }
 
+  export type ChatCompletionRequestMessageContentObject =
+      | { type: 'text', text: string }
+      | { type: 'image_url', image_url: { url: string, detail?: string } }
+
   /**
    *
    * @export
@@ -224,7 +229,7 @@ export namespace openai {
      * @type {string}
      * @memberof ChatCompletionRequestMessage
      */
-    content: string
+    content: string | Array<ChatCompletionRequestMessageContentObject>
     /**
      * The name of the user in a multi-user chat
      * @type {string}
@@ -444,3 +449,5 @@ export namespace openai {
     total_tokens: number
   }
 }
+
+export type QuestionInput = string | Array<ChatCompletionRequestMessageContentObject>
